@@ -306,12 +306,12 @@ router.get('/saringan', async (req, res) => {
 });
 
 // Search (Dashboard)
-router.get('/dashboardSearch', authenticateUser, async (req, res) => {
+router.get('/dashboardSearch', async (req, res) => {
     const searchTerm = req.query.term;
     const table = req.query.table;
     try {
         const rows = await query(`SELECT * FROM ${table} WHERE name LIKE ? OR img LIKE ?`, [`%${searchTerm}%`, `%${searchTerm}%`]);
-        res.render('dashboard', { user: req.session.user, table: table, data: rows });
+        res.render('dashboard', { table: table, data: rows });
     } catch (err) {
         console.error('Error querying the database:', err);
         res.status(500).send('Database query failed');
