@@ -149,7 +149,6 @@ router.post('/update', upload.single('newimage'), async (req, res) => {
                 console.error('Error deleting image file:', err);
                 return;
             }
-            console.log(`Deleted image file: ${imgpath}`);
         });
     })
 
@@ -231,7 +230,6 @@ router.get('/saringan', (req, res) => {
 router.get('/dashboardSearch', (req, res) => {
     const searchTerm = req.query.term;
     const table = req.query.table;
-    console.log(table);
     connection.query(`SELECT * FROM ${table} WHERE name LIKE ? OR img LIKE ?`, [`%${searchTerm}%`, `%${searchTerm}%`], (err, rows) => {                                                                                                             if (err) {
         console.error('Error querying the database:', err);
         return res.status(500).send('Database query failed');
