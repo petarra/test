@@ -1,0 +1,126 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans&display=swap');
+
+* {
+    font-family: 'Montserrat', sans-serif;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* General Styles */
+body {
+    font-family: 'Montserrat', sans-serif;
+    background-color: #f4f4f9;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* Header Styles */
+header {
+    display: flex;
+    flex-direction: row;
+    padding: 0 13% 0 13%;
+    justify-content: space-between;
+    background-color: #105098;
+    color: white;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+header h1 {
+    margin-top: 3%;
+    font-size: 24px;
+}
+
+.top {
+    /* margin-left: 10%; */
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0 29% 0 29%;
+}
+
+.top form{
+    width: 300px;
+}
+
+/* Form Styles */
+form {
+    margin: 20px 0;
+}
+
+form label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+form select,
+form input[type="text"],
+form input[type="file"],
+form button {
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    width: 100%;
+    max-width: 300px;
+    box-sizing: border-box;
+}
+
+form button {
+    background-color: #327FD5;
+    color: white;
+    cursor: pointer;
+    border: none;
+}
+
+form button:hover {
+    background-color: #105098;
+}
+
+/* Table Styles */
+.body {
+    display: flex;
+    justify-content: center;
+}
+
+table {
+    width: 100%;
+    max-width: 800px;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+
+table th,
+table td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+table th {
+    background-color: #105098;
+    color: white;
+}
+
+table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+table tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* Image Styles */
+table img {
+    width: 100px;
+    height: 126px;
+    height: auto;
+    border-radius: 5px;
+}
