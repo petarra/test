@@ -50,7 +50,7 @@
                         <tr>
                             <td><%= row.id %></td>
                             <td><%= row.name %></td>
-                            <td><img src="<%= row.img %>" alt="<%= row.name %>"></td>
+                            <td><img src="/image/<%= row.img %>" alt="<%= row.name %>"></td>
                             <td>
                                 <form action="/update" method="POST" enctype="multipart/form-data">
                                     <input type="hidden" name="table" value="<%= table %>">

@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { promisify } = require('util');
+const bucket = require('./firebase');
 
 // Database (.env)
 require('dotenv').config();
@@ -38,8 +39,6 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage: storage });
-
-// Routes
 
 // Middleware to check if user is authenticated
 const authenticateUser = (req, res, next) => {
@@ -101,66 +100,90 @@ router.all('/admin', authenticateUser, async (req, res) => {
     }
 });
 
+router.get('/image/:imageName', (req, res) => {
+    const imageName = req.params.imageName;
+    const file = bucket.file(imageName);
+  
+    file.createReadStream()
+      .on('error', (err) => {
+        res.status(500).send('Error retrieving image from Firebase Storage: ' + err.message);
+      })
+      .pipe(res);
+  });
+
 // Add data to table
-router.post('/add', authenticateUser, upload.single('fileimage'), async (req, res) => {
+router.post('/add', upload.single('fileimage'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    if (!req.session.user) {
+        return res.status(401).send('Unauthorized User');
+    }
+
+    const { table, name } = req.body;
+    const file = bucket.file(`assets/product/${req.file.originalname}`);
+
     try {
-        if (!req.file) {
-            throw new Error('No file uploaded');
+        await file.save(req.file.buffer, {
+            metadata: { contentType: req.file.mimetype }
+        });
+
+        const img = `https://firebasestorage.googleapis.com/v0/b/${process.env.FIREBASE_STORAGE_BUCKET}/o/assets%2Fproduct%2F${encodeURIComponent(req.file.originalname)}?alt=media`;
+
+        const [rows] = await pool.query(`SELECT * FROM ${table} WHERE img = ?`, [img]);
+
+        if (rows.length > 0) {
+            return res.status(400).json({ message: 'Image already being used' });
         }
 
-        const { table, name } = req.body;
-        const img = `assets/product/${req.file.filename}`;
-
-        // Check if img already exists in the table
-        const result = await query(`SELECT * FROM ${table} WHERE img = ?`, [img]);
-        if (result.length > 0) {
-            throw new Error('Image already being used');
-        }
-
-        // Proceed with insertion if img is unique
-        await query(`INSERT INTO ${table} (name, img) VALUES (?, ?)`, [name, img]);
+        await pool.query(`INSERT INTO ${table} (name, img) VALUES (?, ?)`, [name, img]);
         res.redirect(`/admin?table=${table}`);
     } catch (err) {
-        console.error('Error inserting into the database:', err);
-        res.status(500).send('Database insert failed');
+        console.error('Error uploading to Firebase:', err);
+        res.status(500).send('Firebase upload failed');
     }
 });
 
 // Update data in table
-router.post('/update', authenticateUser, upload.single('newimage'), async (req, res) => {
+router.post('/update', upload.single('newimage'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const { table, id, name } = req.body;
+    const file = bucket.file(`assets/product/${req.file.originalname}`);
+
     try {
-        if (!req.file) {
-            throw new Error('No file uploaded');
-        }
+        await file.save(req.file.buffer, {
+            metadata: { contentType: req.file.mimetype }
+        });
 
-        const { table, id, name } = req.body;
+        const img = `https://firebasestorage.googleapis.com/v0/b/${process.env.FIREBASE_STORAGE_BUCKET}/o/assets%2Fproduct%2F${encodeURIComponent(req.file.originalname)}?alt=media`;
 
-        // Get current image path for deletion
-        const [currentImage] = await query(`SELECT img FROM ${table} WHERE id = ?`, [id]);
-        const imgpath = path.join(__dirname, 'public', currentImage.img);
-        fs.unlinkSync(imgpath); // Synchronously delete current image file
-
-        const img = `assets/product/${req.file.filename}`;
-        await query(`UPDATE ${table} SET name = ?, img = ? WHERE id = ?`, [name, img, id]);
+        await pool.query(`UPDATE ${table} SET name = ?, img = ? WHERE id = ?`, [name, img, id]);
         res.redirect(`/admin?table=${table}`);
     } catch (err) {
-        console.error('Error updating the database:', err);
-        res.status(500).send('Database update failed');
+        console.error('Error uploading to Firebase:', err);
+        res.status(500).send('Firebase upload failed');
     }
 });
 
 // Delete data from table
-router.post('/delete', authenticateUser, async (req, res) => {
-    try {
-        const { table, id, img } = req.body;
-        const imgpath = path.join(__dirname, 'public', img);
-        fs.unlinkSync(imgpath); // Synchronously delete image file
+router.post('/delete', async (req, res) => {
+    const { table, id, img } = req.body;
+    const fileName = decodeURIComponent(path.basename(img));
 
-        await query(`DELETE FROM ${table} WHERE id = ?`, [id]);
+    const file = bucket.file(`assets/product/${fileName}`);
+
+    try {
+        await file.delete();
+
+        await pool.query(`DELETE FROM ${table} WHERE id = ?`, [id]);
         res.redirect(`/admin?table=${table}`);
     } catch (err) {
-        console.error('Error deleting from the database:', err);
-        res.status(500).send('Database delete failed');
+        console.error('Error deleting file from Firebase:', err);
+        res.status(500).send('Firebase delete failed');
     }
 });
 
