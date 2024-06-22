@@ -78,13 +78,16 @@ router.get('/base', (req, res) => {
 })
 
 // Login user
-router.post('/base', (req, res) => {
-    const { user, password } = req.body;
+router.post('/login', (req, res) => {
+    const { user, password, remember } = req.body;
     if (user === 'admin' && password === 'hytam') {
         req.session.user = user;
+        const hour = 3600000;
+        req.session.cookie.expires = new Date(Date.now() + (remember ? 30 * 24 * hour : 2 * hour));
+        req.session.cookie.maxAge = remember ? 30 * 24 * hour : 2 * hour;
         res.redirect('/admin');
     } else {
-        res.send("Invalid Username or Password");
+        res.redirect('/base');
     }
 });
 
