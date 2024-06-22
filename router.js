@@ -69,6 +69,11 @@ router.get('/contact', (req, res) => {
     res.render('contact');
 });
 
+// Login page
+router.get('/base', (req, res) => {
+    res.render('base')
+})
+
 // Login user
 router.post('/base', (req, res) => {
     const { user, password } = req.body;
@@ -228,6 +233,7 @@ router.get('/search', authenticateUser, async (req, res) => {
         res.status(500).send('Database query failed');
     }
 });
+
 
 // Logout route
 router.get('/logout', (req, res) => {
