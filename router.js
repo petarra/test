@@ -4,34 +4,28 @@ const mysql = require('mysql2');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
-const methodOverride = require('method-override');
+const { promisify } = require('util');
 
 // Database (.env)
 require('dotenv').config();
-const dbConfig = ({
-    host: process.env.DB_HOST, 
-    user: process.env.DB_USER, 
+
+// MySQL database configuration
+const dbConfig = {
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
     password: process.env.DB_PASS,
-    database: process.env.DB_NAME, 
-    port: 3306,
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT || 3306,
     multipleStatements: true,
     connectionLimit: 15,
     queueLimit: 0
-  });
+};
 
-const connection = mysql.createConnection(dbConfig);
-    connection.connect((err) => {
-        if (err) {
-        console.error('Error connecting to the database:', err);
-        return;
-        }
-        console.log('Connected to the MySQL database.');
-});
+// Create a connection pool
+const pool = mysql.createPool(dbConfig);
 
-const credential = {
-    user: "admin",
-    password: "hytam"
-}
+// Promisify query method to use async/await
+const query = promisify(pool.query).bind(pool);
 
 // multer for local storage
 const storage = multer.diskStorage({
@@ -44,6 +38,17 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage: storage });
+
+// Routes
+
+// Middleware to check if user is authenticated
+const authenticateUser = (req, res, next) => {
+    if (req.session.user) {
+        next(); // User authenticated, proceed to next middleware/route handler
+    } else {
+        res.send("Unauthorized User");
+    }
+};
 
 // Home
 router.get('/', (req, res) => {
@@ -64,194 +69,167 @@ router.get('/contact', (req, res) => {
     res.render('contact');
 });
 
-//base
-router.get('/base', (req, res) => {
-    res.render('base')
-})
-
-// login user
+// Login user
 router.post('/base', (req, res) => {
-    if (req.body.user == credential.user && req.body.password == credential.password) {
-        req.session.user = req.body.user;
+    const { user, password } = req.body;
+    if (user === 'admin' && password === 'hytam') {
+        req.session.user = user;
         res.redirect('/admin');
-        //res.end("Login Successful...!");
     } else {
-        res.send("Invalid Username or Password")
+        res.send("Invalid Username or Password");
     }
 });
 
-//DASHBOARD ROUTE
-router.all('/admin', (req, res) => {
-    if (req.session.user) {
-        let table = req.query.table || 'tangki'; // Default table
-        if (req.method === 'POST' && req.body.table) {
-            table = req.body.table;
-        }
-        
-        connection.query(`SELECT * FROM ${table}`, (err, rows) => {
-            if (err) {
-                console.error('Error querying the database:', err);
-                return res.status(500).send('Database query failed');
-            }
-            res.render('dashboard', { user: req.session.user, table: table, data: rows });
-        });
-    } else {
-        res.send("Unauthorized User");
+// Dashboard route
+router.all('/admin', authenticateUser, async (req, res) => {
+    let table = req.query.table || 'tangki'; // Default table
+    if (req.method === 'POST' && req.body.table) {
+        table = req.body.table;
+    }
+
+    try {
+        const rows = await query(`SELECT * FROM ${table}`);
+        res.render('dashboard', { user: req.session.user, table: table, data: rows });
+    } catch (err) {
+        console.error('Error querying the database:', err);
+        res.status(500).send('Database query failed');
     }
 });
 
 // Add data to table
-router.post('/add', upload.single('fileimage'), (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ message: 'No file uploaded' });
-    }
-
-    if (!req.session.user) {
-        return res.status(401).send('Unauthorized User');
-    }
-
-    const { table, name } = req.body;
-    const img = `assets/product/${req.file.filename}`;
-
-    // Check if img already exists in the table
-    connection.query(`SELECT * FROM ${table} WHERE img = ?`, [img], (err, result) => {
-        if (err) {
-            console.error('Error querying the database:', err);
-            return res.status(500).send('Database query failed');
+router.post('/add', authenticateUser, upload.single('fileimage'), async (req, res) => {
+    try {
+        if (!req.file) {
+            throw new Error('No file uploaded');
         }
 
+        const { table, name } = req.body;
+        const img = `assets/product/${req.file.filename}`;
+
+        // Check if img already exists in the table
+        const result = await query(`SELECT * FROM ${table} WHERE img = ?`, [img]);
         if (result.length > 0) {
-            return res.status(400).json({ message: 'Image already being used' });
+            throw new Error('Image already being used');
         }
 
         // Proceed with insertion if img is unique
-        connection.query(`INSERT INTO ${table} (name, img) VALUES (?, ?)`, [name, img], (err, result) => {
-            if (err) {
-                console.error('Error inserting into the database:', err);
-                return res.status(500).send('Database insert failed');
-            }
-            res.redirect(`/admin?table=${table}`);
-        });
-    });
+        await query(`INSERT INTO ${table} (name, img) VALUES (?, ?)`, [name, img]);
+        res.redirect(`/admin?table=${table}`);
+    } catch (err) {
+        console.error('Error inserting into the database:', err);
+        res.status(500).send('Database insert failed');
+    }
 });
 
-
 // Update data in table
-router.post('/update', upload.single('newimage'), async (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ message: 'No file uploaded' });
-    }
-
-    const { table, id, name } = req.body;
-    const finder = `SELECT img FROM ${table} WHERE id = ?`;
-    connection.query(`SELECT img FROM ${table} WHERE id = ?`, [id], (err,results) => {
-        const imgpath = path.join(__dirname, 'public', results[0].img);
-        fs.unlink(imgpath, (err) => {
-            if (err) {
-                console.error('Error deleting image file:', err);
-                return;
-            }
-        });
-    })
-
-    const img = `assets/product/${req.file.filename}`;
-    connection.query(`UPDATE ${table} SET name = ?, img = ? WHERE id = ?`, [name, img, id], (err, result) => {
-        if (err) {
-            console.error('Error updating the database:', err);
-            return res.status(500).send('Database update failed');
+router.post('/update', authenticateUser, upload.single('newimage'), async (req, res) => {
+    try {
+        if (!req.file) {
+            throw new Error('No file uploaded');
         }
+
+        const { table, id, name } = req.body;
+
+        // Get current image path for deletion
+        const [currentImage] = await query(`SELECT img FROM ${table} WHERE id = ?`, [id]);
+        const imgpath = path.join(__dirname, 'public', currentImage.img);
+        fs.unlinkSync(imgpath); // Synchronously delete current image file
+
+        const img = `assets/product/${req.file.filename}`;
+        await query(`UPDATE ${table} SET name = ?, img = ? WHERE id = ?`, [name, img, id]);
         res.redirect(`/admin?table=${table}`);
-    });
+    } catch (err) {
+        console.error('Error updating the database:', err);
+        res.status(500).send('Database update failed');
+    }
 });
 
 // Delete data from table
-router.post('/delete', async (req, res) => {
-    const { table, id, img } = req.body;
-    const imgpath = path.join(__dirname, 'public', img);
-    fs.unlink(imgpath, (err) => {
-        if (err) {
-            console.error('Error deleting image file:', err);
-            return;
-        }
-    });
+router.post('/delete', authenticateUser, async (req, res) => {
+    try {
+        const { table, id, img } = req.body;
+        const imgpath = path.join(__dirname, 'public', img);
+        fs.unlinkSync(imgpath); // Synchronously delete image file
 
-    connection.query(`DELETE FROM ${table} WHERE id = ?`, [id], (err, result) => {
-        if (err) {
-            console.error('Error deleting from the database:', err);
-            return res.status(500).send('Database delete failed');
-        }
+        await query(`DELETE FROM ${table} WHERE id = ?`, [id]);
         res.redirect(`/admin?table=${table}`);
-    });
+    } catch (err) {
+        console.error('Error deleting from the database:', err);
+        res.status(500).send('Database delete failed');
+    }
 });
 
 // Read (Product)
-router.get('/product', (req, res) => {
-    connection.query('SELECT * FROM tangki', (err, rows) => {
-        if (err){
-            console.error('Error querying the database:', err);
-            return res.status(500).send('Database query failed');
-        }
+router.get('/product', async (req, res) => {
+    try {
+        const rows = await query('SELECT * FROM tangki');
         res.render('product', { tangki: rows });
-    })
-})
+    } catch (err) {
+        console.error('Error querying the database:', err);
+        res.status(500).send('Database query failed');
+    }
+});
 
 // Read (Pipa)
-router.get('/pipa', (req, res) => {
-    connection.query('SELECT * FROM pipa', (err, rows) => {
-        if (err){
-            console.error('Error querying the database:', err);
-            return res.status(500).send('Database query failed');
-        }
+router.get('/pipa', async (req, res) => {
+    try {
+        const rows = await query('SELECT * FROM pipa');
         res.render('pipa', { tangki: rows });
-    })
-})
+    } catch (err) {
+        console.error('Error querying the database:', err);
+        res.status(500).send('Database query failed');
+    }
+});
 
 // Read (Sambungan)
-router.get('/sambungan', (req, res) => {
-    connection.query('SELECT * FROM sambungan', (err, rows) => {
-        if (err){
-            console.error('Error querying the database:', err);
-            return res.status(500).send('Database query failed');
-        }
+router.get('/sambungan', async (req, res) => {
+    try {
+        const rows = await query('SELECT * FROM sambungan');
         res.render('sambungan', { tangki: rows });
-    })
-})
+    } catch (err) {
+        console.error('Error querying the database:', err);
+        res.status(500).send('Database query failed');
+    }
+});
 
 // Read (Saringan)
-router.get('/saringan', (req, res) => {
-    connection.query('SELECT * FROM bahan_saringan', (err, rows) => {
-        if (err){
-            console.error('Error querying the database:', err);
-            return res.status(500).send('Database query failed');
-        }
+router.get('/saringan', async (req, res) => {
+    try {
+        const rows = await query('SELECT * FROM bahan_saringan');
         res.render('saringan', { tangki: rows });
-    })
-})
+    } catch (err) {
+        console.error('Error querying the database:', err);
+        res.status(500).send('Database query failed');
+    }
+});
 
 // Search (Dashboard)
-router.get('/dashboardSearch', (req, res) => {
+router.get('/dashboardSearch', authenticateUser, async (req, res) => {
     const searchTerm = req.query.term;
     const table = req.query.table;
-    connection.query(`SELECT * FROM ${table} WHERE name LIKE ? OR img LIKE ?`, [`%${searchTerm}%`, `%${searchTerm}%`], (err, rows) => {                                                                                                             if (err) {
+    try {
+        const rows = await query(`SELECT * FROM ${table} WHERE name LIKE ? OR img LIKE ?`, [`%${searchTerm}%`, `%${searchTerm}%`]);
+        res.render('dashboard', { user: req.session.user, table: table, data: rows });
+    } catch (err) {
         console.error('Error querying the database:', err);
-        return res.status(500).send('Database query failed');
-      }
-      res.render('dashboard', { user: req.session.user, table: table, data: rows });
-    });
+        res.status(500).send('Database query failed');
+    }
 });
 
-router.get('/search', (req, res) => {
+// Search across all tables
+router.get('/search', authenticateUser, async (req, res) => {
     const searchTerm = req.query.term;
-    const query = 'SELECT * FROM tangki where name LIKE ? UNION SELECT * FROM pipa where name LIKE ? UNION SELECT * FROM bahan_saringan where name LIKE ? UNION SELECT * FROM sambungan where name LIKE ?'
-    connection.query(query, [`%${searchTerm}%`, `%${searchTerm}%` , `%${searchTerm}%` , `%${searchTerm}%`], (err, rows) => {                                                                                                              if (err) {
+    const query = 'SELECT * FROM tangki WHERE name LIKE ? UNION SELECT * FROM pipa WHERE name LIKE ? UNION SELECT * FROM bahan_saringan WHERE name LIKE ? UNION SELECT * FROM sambungan WHERE name LIKE ?';
+    try {
+        const rows = await query(query, [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`]);
+        res.render('search', { user: req.session.user, data: rows });
+    } catch (err) {
         console.error('Error querying the database:', err);
-        return res.status(500).send('Database query failed');
-      }
-      res.render('search', { user: req.session.user, data: rows });
-    });
+        res.status(500).send('Database query failed');
+    }
 });
 
-// route for logout
+// Logout route
 router.get('/logout', (req, res) => {
     req.session.destroy((err) => {
         if (err) {
