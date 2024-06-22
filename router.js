@@ -78,22 +78,26 @@ router.get('/base', (req, res) => {
 })
 
 // Login user
-router.post('/login', (req, res) => {
+// Login user
+router.post("/login", (req, res) => {
     const { user, password, remember } = req.body;
-    if (user === 'admin' && password === 'hytam') {
+    if (user === "admin" && password === "hytam") {
         req.session.user = user;
         const hour = 3600000;
-        req.session.cookie.expires = new Date(Date.now() + (remember ? 30 * 24 * hour : 2 * hour));
-        req.session.cookie.maxAge = remember ? 30 * 24 * hour : 2 * hour;
-        res.redirect('/admin');
-    } else {
-        res.redirect('/base');
+        req.session.cookie.expires = new Date(
+        Date.now() + (remember ? 30 * 24 * hour : 2 * hour)
+    );
+    req.session.cookie.maxAge = remember ? 30 * 24 * hour : 2 * hour;
+  
+    res.redirect("/admin");
+    }else{
+        res.redirect("/base");
     }
-});
+  });
 
 // Dashboard route
 router.all('/admin', authenticateUser, async (req, res) => {
-    let table = req.query.table || 'tangki'; // Default table
+    let table = req.query.table || 'tangki';
     if (req.method === 'POST' && req.body.table) {
         table = req.body.table;
     }

@@ -15,7 +15,8 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(session({
   secret: process.env.SECRET, 
   resave: false,
-  saveUninitialized: true
+  saveUninitialized: true,
+  cookie: { secure: false }
 }));
 
 // load static assets
