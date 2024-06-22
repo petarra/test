@@ -78,7 +78,6 @@ router.get('/base', (req, res) => {
 })
 
 // Login user
-// Login user
 router.post('/login', (req, res) => {
     const { user, password, remember } = req.body;
     if (user === 'admin' && password === 'hytam') {
@@ -95,7 +94,7 @@ router.post('/login', (req, res) => {
 });
 
 // Dashboard route
-router.all('/admin', authenticateUser, async (req, res) => {
+router.all('/admin', async (req, res) => {
     let table = req.query.table || 'tangki';
     if (req.method === 'POST' && req.body.table) {
         table = req.body.table;
@@ -103,7 +102,7 @@ router.all('/admin', authenticateUser, async (req, res) => {
 
     try {
         const rows = await query(`SELECT * FROM ${table}`);
-        res.render('dashboard', { user: req.session.user, table: table, data: rows });
+        res.render('dashboard', { table: table, data: rows });
     } catch (err) {
         console.error('Error querying the database:', err);
         res.status(500).send('Database query failed');
