@@ -52,18 +52,17 @@
                             <td><%= row.name %></td>
                             <td><img src="/image/<%= row.img %>" alt="<%= row.name %>"></td>
                             <td>
-                                <form action="/update" method="POST" enctype="multipart/form-data">
+                                <form action="/update/<%= row.img %>" method="POST" enctype="multipart/form-data">
                                     <input type="hidden" name="table" value="<%= table %>">
                                     <input type="hidden" name="id" value="<%= row.id %>">
                                     <input type="text" name="name" value="<%= row.name %>" required>
-                                    <input type="file" name="newimage" placeholder="Upload" id="newimage" onchange="imgname2()" required>
+                                    <input type="file" name="newimage" placeholder="Upload" id="newimage" onchange="imgname2()">
                                     <input type="hidden" name="img" value="" required>
                                     <button type="submit">Update</button>
                                 </form>
-                                <form action="/delete" method="POST" >
+                                <form action="/delete/<%= row.img %>" method="POST" >
                                     <input type="hidden" name="table" value="<%= table %>">
                                     <input type="hidden" name="id" value="<%= row.id %>">
-                                    <input type="hidden" name="img" value="<%= row.img %>">
                                     <button type="submit">Delete</button>
                                 </form>
                             </td>

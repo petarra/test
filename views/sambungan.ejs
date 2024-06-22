@@ -48,7 +48,15 @@
                 <li><a href="/saringan" class="">Bahan Saringan</a></li>
             </ul>
         </div>
-        <div id="cards"></div>
+        <div id="cards">
+            <% tangki.forEach(prod => { %>
+                <div class="card">
+                    <img src="/image/<%= prod.img %>" alt="">
+                    <h3 class="product-name"><%= prod.name %></h3>
+                    <a href="https://wa.link/4on5b0" target ="_blank"><div class="buy-now">BUY NOW!</div></a>
+                </div>
+            <% }); %>
+        </div>
     </div>
 
 
@@ -105,42 +113,6 @@
         </div>
     </footer>
     <script>
-        const products = [
-            { id: 1, name: "Elbow Out (45°)", img: "../assets/product/45 derajat elbow_out.png" },
-            { id: 2, name: "Elbow Out", img: "../assets/product/elbow_out.png" },
-            { id: 3, name: "Reducing Socket Out", img: "../assets/product/Reducing socket_out.png" },
-            { id: 4, name: "Socket Out", img: "../assets/product/socket_out.png" },
-            { id: 5, name: "Tee", img: "../assets/product/Tee.png" },
-            { id: 6, name: "Valve Socket Out", img: "../assets/product/valve socket_out.png" },
-        ];
-
-        function displayProducts(products) {
-            const productList = document.getElementById("cards");
-            productList.innerHTML = "";
-
-            products.forEach(product => {
-                const productItem = document.createElement("div");
-                productItem.innerHTML = `
-                <div class="card"> 
-                    <img src="${product.img}" alt="">
-                    <h3 class="product-name">${product.name}</h3>
-                    <a href="https://wa.link/iyndqb" target ="_blank"><div class="buy-now">BUY NOW!</div></a>
-                </div>
-                `;
-                productList.appendChild(productItem);
-            });
-        }
-
-        displayProducts(products);
-
-        const searchInput = document.getElementById("search-input");
-        searchInput.addEventListener("input", function () {
-            const searchKeyword = this.value.toLowerCase();
-            const filteredProducts = products.filter(product =>
-                product.name.toLowerCase().includes(searchKeyword)
-            );
-            displayProducts(filteredProducts);
-        });
     </script>
 </body>
 
