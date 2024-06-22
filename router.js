@@ -6,7 +6,6 @@ const path = require('path');
 const multer = require('multer');
 const { promisify } = require('util');
 const bucket = require('./firebase');
-const session = require("express-session");
 
 // Database (.env)
 require('dotenv').config();
@@ -53,17 +52,6 @@ const authenticateUser = (req, res, next) => {
         res.redirect('/base'); // Redirect unauthorized users to login page
     }
 };
-
-// Express session configuration
-router.use(session({
-    secret: process.env.SECRET,
-    resave: false,
-    saveUninitialized: true,
-    cookie: {
-        secure: true, // Ensures the session cookie is only sent over HTTPS
-        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days (adjust as needed)
-    }
-}));
 
 // Home
 router.get('/', (req, res) => {
