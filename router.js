@@ -49,7 +49,7 @@ const authenticateUser = (req, res, next) => {
     if (req.session.user) {
         next(); // User authenticated, proceed to next middleware/route handler
     } else {
-        res.send("Unauthorized User");
+        res.redirect('/base'); // Redirect unauthorized users to login page
     }
 };
 
@@ -79,21 +79,20 @@ router.get('/base', (req, res) => {
 
 // Login user
 // Login user
-router.post("/login", (req, res) => {
+router.post('/login', (req, res) => {
     const { user, password, remember } = req.body;
-    if (user === "admin" && password === "hytam") {
+    if (user === 'admin' && password === 'hytam') {
         req.session.user = user;
-        const hour = 3600000;
-        req.session.cookie.expires = new Date(
-        Date.now() + (remember ? 30 * 24 * hour : 2 * hour)
-    );
-    req.session.cookie.maxAge = remember ? 30 * 24 * hour : 2 * hour;
-  
-    res.redirect("/admin");
-    }else{
-        res.redirect("/base");
+        if (remember) {
+            req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+        } else {
+            req.session.cookie.expires = false; // Browser session
+        }
+        res.redirect('/admin');
+    } else {
+        res.redirect('/base');
     }
-  });
+});
 
 // Dashboard route
 router.all('/admin', authenticateUser, async (req, res) => {
@@ -350,12 +349,12 @@ router.get('/search', async (req, res) => {
 
 // Logout route
 router.get('/logout', (req, res) => {
-    req.session.destroy((err) => {
+    req.session.destroy(err => {
         if (err) {
-            console.log(err);
-            res.send("Error logging out");
+            console.error('Error destroying session:', err);
+            res.status(500).send('Error logging out');
         } else {
-            res.redirect('/base'); // Redirect to login page or appropriate route
+            res.redirect('/base');
         }
     });
 });
