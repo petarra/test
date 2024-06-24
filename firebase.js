@@ -1,5 +1,5 @@
 const admin = require('firebase-admin');
-const fbpath = require('./test-cfdfa-firebase-adminsdk-jeie3-7bbdea5786.json');
+const fbpath = require('./test-cfdfa-firebase-adminsdk-jeie3-37e9d7e4c5.json');
 require('dotenv').config();
 
 admin.initializeApp({
