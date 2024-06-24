@@ -47,9 +47,9 @@ const upload = multer({
 // Middleware to check if user is authenticated
 const authenticateUser = (req, res, next) => {
     if (req.session.user) {
-        next(); // User authenticated, proceed to next middleware/route handler
+        next(); 
     } else {
-        res.redirect('/base'); // Redirect unauthorized users to login page
+        res.redirect('/base'); 
     }
 };
 
@@ -124,10 +124,6 @@ router.get('/image/:imageName', (req, res) => {
 router.post('/add', upload.single('fileimage'), (req, res) => {
     if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
-    }
-
-    if (!req.session.user) {
-        return res.status(401).send('Unauthorized User');
     }
 
     const { table, name } = req.body;
