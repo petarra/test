@@ -18,7 +18,7 @@ const dbConfig = {
     database: process.env.DB_NAME,
     port: process.env.DB_PORT || 3306,
     multipleStatements: true,
-    connectionLimit: 15,
+    connectionLimit: 200,
     queueLimit: 0
 };
 
@@ -130,10 +130,9 @@ router.post('/add', upload.single('fileimage'), async (req, res) => {
     const img = req.file.originalname;
 
     try {
-        // Get a connection from the pool
         const connection = await getConnection();
 
-        // Check if the image already exists
+        // Check if image already being used
         const result = await query(`SELECT * FROM ${table} WHERE img = ?`, [img]);
 
         if (result.length > 0) {
@@ -141,7 +140,7 @@ router.post('/add', upload.single('fileimage'), async (req, res) => {
             return res.status(400).json({ message: 'Image already being used' });
         }
 
-        // Upload the image to Firebase Storage
+        // Upload ke firebase
         const file = bucket.file(img);
         const stream = file.createWriteStream({
             metadata: {
@@ -181,7 +180,7 @@ router.post('/update/:imageName', upload.single('newimage'), (req, res) => {
     try {
         const { table, id, name } = req.body;
 
-        // If no new image uploaded, just update the name
+        // If no new image, update only the name
         if (!req.file) {
             pool.query(`UPDATE ${table} SET name = ? WHERE id = ?`, [name, id], (err, result) => {
                 if (err) {
