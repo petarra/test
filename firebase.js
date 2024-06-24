@@ -15,10 +15,6 @@ const fbpath = {
     universe_domain: process.env.FIREBASE_UNIVERSE_DOMAIN
 }
 
-
-
-
-
 admin.initializeApp({
     credential: admin.credential.cert(fbpath),
     storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
