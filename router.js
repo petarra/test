@@ -18,7 +18,7 @@ const dbConfig = {
     database: process.env.DB_NAME,
     port: process.env.DB_PORT || 3306,
     multipleStatements: true,
-    connectionLimit: 200,
+    connectionLimit: 20,
     queueLimit: 0
 };
 
