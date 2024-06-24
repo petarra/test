@@ -33,8 +33,8 @@ const connection = mysql.createConnection(dbConfig);
 
 // Create a connection pool
 const pool = mysql.createPool(dbConfig);
-
 const query = promisify(pool.query).bind(pool);
+const getConnection = promisify(pool.getConnection).bind(pool);
 
 // multer for local storage
 const upload = multer({
@@ -121,47 +121,59 @@ router.get('/image/:imageName', (req, res) => {
   });
 
 // Add data to table
-router.post('/add', upload.single('fileimage'), (req, res) => {
+router.post('/add', upload.single('fileimage'), async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
     }
 
     const { table, name } = req.body;
     const img = req.file.originalname;
-    // Check if img already exists in the table
-    connection.query(`SELECT * FROM ${table} WHERE img = ?`, [img], (err, result) => {
-        if (err) {
-            console.error('Error querying the database:', err);
-            return res.status(500).send('Database query failed');
-        }
+
+    try {
+        // Get a connection from the pool
+        const connection = await getConnection();
+
+        // Check if the image already exists
+        const result = await query(`SELECT * FROM ${table} WHERE img = ?`, [img]);
 
         if (result.length > 0) {
+            connection.release();
             return res.status(400).json({ message: 'Image already being used' });
         }
 
-        const imageName = req.file.originalname;
-        const file = bucket.file(imageName);
+        // Upload the image to Firebase Storage
+        const file = bucket.file(img);
         const stream = file.createWriteStream({
             metadata: {
-              contentType: req.file.mimetype,
+                contentType: req.file.mimetype,
             },
-          });
-      
-          stream.on('error', (err) => {
-            console.error('Error uploading file:', err);
-            res.status(500).send('Error uploading file.');
-          });
-      
-          stream.end(req.file.buffer);
-        // Proceed with insertion if img is unique
-        connection.query(`INSERT INTO ${table} (name, img) VALUES (?, ?)`, [name, img], (err, result) => {
-            if (err) {
-                console.error('Error inserting into the database:', err);
-                return res.status(500).send('Database insert failed');
-            }
-            res.redirect(`/admin?table=${table}`);
         });
-    });
+
+        stream.on('error', (err) => {
+            console.error('Error uploading file:', err);
+            connection.release();
+            res.status(500).send('Error uploading file.');
+        });
+
+        stream.on('finish', async () => {
+            try {
+                // Proceed with insertion if img is unique and upload successful
+                await query(`INSERT INTO ${table} (name, img) VALUES (?, ?)`, [name, img]);
+                connection.release();
+                res.redirect(`/admin?table=${table}`);
+            } catch (err) {
+                console.error('Error inserting into the database:', err);
+                connection.release();
+                res.status(500).send('Database insert failed');
+            }
+        });
+
+        stream.end(req.file.buffer);
+
+    } catch (err) {
+        console.error('Error querying the database:', err);
+        res.status(500).send('Database query failed');
+    }
 });
 
 // Update data in table
